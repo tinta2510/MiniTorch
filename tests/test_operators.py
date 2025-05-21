@@ -1,28 +1,13 @@
 from typing import Callable, List, Tuple
 
 import pytest
-from hypothesis import given
+from hypothesis import given, assume
 from hypothesis.strategies import lists
 
 from minitorch import MathTest
 from minitorch.operators import (
-    add,
-    addLists,
-    eq,
-    id,
-    inv,
-    inv_back,
-    log_back,
-    lt,
-    max,
-    mul,
-    neg,
-    negList,
-    prod,
-    relu,
-    relu_back,
-    sigmoid,
-    sum,
+    add, addLists, eq, id, inv, inv_back, log_back, lt, max, mul, neg, negList,
+    prod, relu, relu_back, sigmoid, sum, EPS, log
 )
 
 from .strategies import assert_close, small_floats
@@ -103,51 +88,78 @@ def test_eq(a: float) -> None:
 def test_sigmoid(a: float) -> None:
     """Check properties of the sigmoid function, specifically
     * It is always between 0.0 and 1.0.
-    * one minus sigmoid is the same as sigmoid of the negative
+    * One minus sigmoid is the same as sigmoid of the negative
     * It crosses 0 at 0.5
     * It is  strictly increasing.
     """
-    # TODO: Implement for Task 0.2.
-    raise NotImplementedError('Need to implement for Task 0.2')
+    # 1. It is always between 0.0 and 1.0.
+    assert 0.0 <= sigmoid(a) and sigmoid(a) <= 1.0
+    
+    # 2. One minus sigmoid is the same as sigmoid of the negative
+    assert 1 - sigmoid(a) == pytest.approx(sigmoid(-a))
+    
+    # 3. It crosses 0 at 0.5
+    assert sigmoid(0.0) == pytest.approx(0.5)
+    
+    # 4. It is strictly increasing.
+    assert sigmoid(a) < sigmoid(a + 1) + EPS
 
 
 @pytest.mark.task0_2
 @given(small_floats, small_floats, small_floats)
 def test_transitive(a: float, b: float, c: float) -> None:
     "Test the transitive property of less-than (a < b and b < c implies a < c)"
-    # TODO: Implement for Task 0.2.
-    raise NotImplementedError('Need to implement for Task 0.2')
-
+    if lt(a, b) == 1.0 and lt(b, c) == 1.0:
+        assert lt(a, c) == 1.0 
+    
 
 @pytest.mark.task0_2
-def test_symmetric() -> None:
+@given(small_floats, small_floats)
+def test_symmetric(a: float, b: float) -> None:
     """
     Write a test that ensures that :func:`minitorch.operators.mul` is symmetric, i.e.
     gives the same value regardless of the order of its input.
     """
-    # TODO: Implement for Task 0.2.
-    raise NotImplementedError('Need to implement for Task 0.2')
+    assert mul(a, b) == pytest.approx(mul(b, a))
 
 
 @pytest.mark.task0_2
-def test_distribute() -> None:
+@given(small_floats, small_floats, small_floats)
+def test_distribute(a: float, b: float, c: float) -> None:
     r"""
     Write a test that ensures that your operators distribute, i.e.
     :math:`z \times (x + y) = z \times x + z \times y`
     """
-    # TODO: Implement for Task 0.2.
-    raise NotImplementedError('Need to implement for Task 0.2')
+    assert mul(a, add(b, c)) == pytest.approx(add(mul(a, b), mul(a, c)))
 
 
 @pytest.mark.task0_2
-def test_other() -> None:
+@given(small_floats)
+def test_backward(x: float) -> None:
     """
-    Write a test that ensures some other property holds for your functions.
+    Test to test backward calcalution of log, relu, sigmoid
+    Parameters:
+        x (float): The input at which to estimate the gradient
+        d (float): The output grad
     """
-    # TODO: Implement for Task 0.2.
-    raise NotImplementedError('Need to implement for Task 0.2')
+    assume(abs(x) > 1e-4)
+    assert finite_difference(log, abs(x)) == pytest.approx(log_back(abs(x), 1), rel=1e-4)
+    assert finite_difference(inv, x) == pytest.approx(inv_back(x, 1), rel=1e-4)
+    assert finite_difference(relu, x) == pytest.approx(relu_back(x, 1), rel=1e-4)
 
-
+def finite_difference(f: Callable, x: float, eps=EPS):
+    """
+    Estimate the derivative of f at x using the central difference method.
+    
+    Args:
+        f (callable): A scalar function f(x)
+        x (float): The input at which to estimate the gradient
+        eps (float): A small value for finite difference
+    
+    Returns:
+        float: The estimated gradient
+    """
+    return (f(x + eps) - f(x - eps)) / (2 * eps)
 # ## Task 0.3  - Higher-order functions
 
 # These tests check that your higher-order functions obey basic
