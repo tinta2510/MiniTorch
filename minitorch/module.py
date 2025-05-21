@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence, Tuple
-
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from functools import reduce
 
 class Module:
     """
@@ -31,13 +31,14 @@ class Module:
 
     def train(self) -> None:
         "Set the mode of this module and all descendent modules to `train`."
-        # TODO: Implement for Task 0.4.
-        raise NotImplementedError('Need to implement for Task 0.4')
+        self.training = True
+        [module.train() for module in self.modules()]
+            
 
     def eval(self) -> None:
         "Set the mode of this module and all descendent modules to `eval`."
-        # TODO: Implement for Task 0.4.
-        raise NotImplementedError('Need to implement for Task 0.4')
+        self.training = False
+        [module.eval() for module in self.modules()]
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """
@@ -47,13 +48,27 @@ class Module:
         Returns:
             The name and `Parameter` of each ancestor parameter.
         """
-        # TODO: Implement for Task 0.4.
-        raise NotImplementedError('Need to implement for Task 0.4')
-
+        def reducer(name: str, module: Module) -> Sequence[Tuple[str, Parameter]]:
+            """Recurvisely collect named parameters of sub-modules.
+            Args:
+                name (str): Name of the module.
+                module (Module): The module itself.
+            Returns:
+                List of tuples containing the name and parameter.
+            """
+            return [(f'{name}.{key}', value) for key, value in module.named_parameters()]
+        return (list(self.__dict__["_parameters"].items()) 
+                + reduce(lambda acc, ele: acc + reducer(*ele), 
+                         self.__dict__["_modules"].items(), 
+                         []))
+                        
+                        
     def parameters(self) -> Sequence[Parameter]:
         "Enumerate over all the parameters of this module and its descendents."
-        # TODO: Implement for Task 0.4.
-        raise NotImplementedError('Need to implement for Task 0.4')
+        return (list(self.__dict__["_parameters"].values())
+                + reduce(lambda acc, child: acc + child.parameters(), 
+                         self.modules(), 
+                         [])) 
 
     def add_parameter(self, k: str, v: Any) -> Parameter:
         """
@@ -70,7 +85,7 @@ class Module:
         self.__dict__["_parameters"][k] = val
         return val
 
-    def __setattr__(self, key: str, val: Parameter) -> None:
+    def __setattr__(self, key: str, val: Union[Parameter, Module]) -> None:
         if isinstance(val, Parameter):
             self.__dict__["_parameters"][key] = val
         elif isinstance(val, Module):

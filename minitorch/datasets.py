@@ -21,6 +21,9 @@ class Graph:
 
 
 def simple(N: int) -> Graph:
+    """
+    Generate a random dataset with two classes.
+    """
     X = make_pts(N)
     y = []
     for x_1, x_2 in X:
