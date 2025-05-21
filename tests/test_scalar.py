@@ -46,7 +46,9 @@ def test_central_diff() -> None:
 
     d = central_difference(operators.exp, 2, arg=0)
     assert_close(d, operators.exp(2.0))
-
+    
+    d = central_difference(lambda x, y: x**2 + y**3, 1, 2, arg=1)
+    assert_close(d, 12.0)
 
 # ## Task 1.2 - Test each of the different function types
 
