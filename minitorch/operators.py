@@ -12,50 +12,42 @@ from typing import Callable, Iterable
 
 def mul(x: float, y: float) -> float:
     "$f(x, y) = x * y$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return x * y
 
 
 def id(x: float) -> float:
     "$f(x) = x$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return x
 
 
 def add(x: float, y: float) -> float:
     "$f(x, y) = x + y$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return x + y
 
 
 def neg(x: float) -> float:
     "$f(x) = -x$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return -x
 
 
 def lt(x: float, y: float) -> float:
     "$f(x) =$ 1.0 if x is less than y else 0.0"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return 1.0 if x < y else 0.0
 
 
 def eq(x: float, y: float) -> float:
     "$f(x) =$ 1.0 if x is equal to y else 0.0"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return 1.0 if x == y else 0.0
 
 
 def max(x: float, y: float) -> float:
     "$f(x) =$ x if x is greater than y else y"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return x if x > y else y
 
 
 def is_close(x: float, y: float) -> float:
     "$f(x) = |x - y| < 1e-2$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return 1.0 if abs(x - y) < 1e-2 else 0.0
 
 
 def sigmoid(x: float) -> float:
@@ -70,8 +62,7 @@ def sigmoid(x: float) -> float:
 
     for stability.
     """
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return 1.0/(1.0 + exp(-x)) if x >= 0 else exp(x)/(1.0 + exp(x))
 
 
 def relu(x: float) -> float:
@@ -80,8 +71,7 @@ def relu(x: float) -> float:
 
     (See https://en.wikipedia.org/wiki/Rectifier_(neural_networks) .)
     """
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return x if x > 0 else 0
 
 
 EPS = 1e-6
@@ -98,27 +88,54 @@ def exp(x: float) -> float:
 
 
 def log_back(x: float, d: float) -> float:
-    r"If $f = log$ as above, compute $d \times f'(x)$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    r"""
+    Computes the gradient of the natural logarithm function with respect to its input.
 
+    This is used in the backward pass. If the forward function is f(x) = log(x), 
+    then the derivative is f'(x) = 1/x. Given an upstream gradient `d`, this function 
+    returns the product of $d \times f'(x)$.
+
+    Parameters:
+        x (float): The input value to the log function (must be > 0).
+        d (float): The upstream gradient from later operations.
+
+    Returns:
+        float: The downstream gradient, equal to d / x.
+    """
+    return d / (x + EPS)
 
 def inv(x: float) -> float:
     "$f(x) = 1/x$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    return 1 / (x + EPS)
 
 
 def inv_back(x: float, d: float) -> float:
-    r"If $f(x) = 1/x$ compute $d \times f'(x)$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    r"""
+    Computes the gradient of the inverse function f(x) = 1/x with respect to its input.
+    
+    Parameters:
+        x (float): The input value to the inverse function (must not be zero).
+        d (float): The upstream gradient from subsequent operations.
 
+    Returns:
+        float: The downstream gradient, equal to -d / (x ** 2).
+    """
+    return - d / (x**2 + EPS)
 
 def relu_back(x: float, d: float) -> float:
-    r"If $f = relu$ compute $d \times f'(x)$"
-    # TODO: Implement for Task 0.1.
-    raise NotImplementedError('Need to implement for Task 0.1')
+    r"""
+    Computes the gradient of the ReLU function f(x) = max(0, x) with respect to its input.
+    
+    f'(x) = 1 if x > 0 else 0
+    
+    Parameters:
+        x (float): The input to the ReLU function.
+        d (float): The upstream gradient from subsequent operations.
+
+    Returns:
+        float: The downstream gradient, equal to d if x > 0, else 0.
+    """
+    return d if x > 0 else 0
 
 
 # ## Task 0.3
