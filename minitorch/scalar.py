@@ -78,6 +78,9 @@ class Scalar:
             self.name = name
         else:
             self.name = str(self.unique_id)
+        
+    def __hash__(self) -> int:
+        return hash(self.unique_id)
 
     def __repr__(self) -> str:
         return "Scalar(%f)" % self.data
@@ -165,10 +168,10 @@ class Scalar:
 
         chains = []
         for input, grad in zip(h.inputs, h.last_fn.backward(h.ctx, d_output)):
-            if input.is_leaf():
-                chains += [(input.name, grad)]
-            else:
-                chains += input.chain_rule(grad)
+            # if input.is_leaf():
+            chains += [(input, grad)]
+            # else:
+            #     chains += input.chain_rule(grad)
         return chains
 
     def backward(self, d_output: Optional[float] = None) -> None:
