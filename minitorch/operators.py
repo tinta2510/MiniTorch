@@ -80,7 +80,7 @@ EPS = 1e-6
 
 def log(x: float) -> float:
     "$f(x) = log(x)$"
-    return math.log(x + EPS)
+    return math.log(x)
 
 
 def exp(x: float) -> float:
@@ -103,11 +103,11 @@ def log_back(x: float, d: float) -> float:
     Returns:
         float: The downstream gradient, equal to d / x.
     """
-    return d / (x + EPS)
+    return d / x
 
 def inv(x: float) -> float:
     "$f(x) = 1/x$"
-    return 1 / (x + EPS)
+    return 1 / x 
 
 
 def inv_back(x: float, d: float) -> float:
@@ -121,7 +121,7 @@ def inv_back(x: float, d: float) -> float:
     Returns:
         float: The downstream gradient, equal to -d / (x ** 2).
     """
-    return - d / (x**2 + EPS)
+    return - d / x**2 
 
 def relu_back(x: float, d: float) -> float:
     r"""

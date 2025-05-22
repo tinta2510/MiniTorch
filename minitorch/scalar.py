@@ -167,7 +167,7 @@ class Scalar:
         assert h.ctx is not None
 
         chains = []
-        for input, grad in zip(h.inputs, h.last_fn.backward(h.ctx, d_output)):
+        for input, grad in zip(h.inputs, tuple(h.last_fn.backward(h.ctx, d_output))):
             # if input.is_leaf():
             chains += [(input, grad)]
             # else:

@@ -22,9 +22,9 @@ def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) 
     Returns:
         An approximation of $f'_i(x_0, \ldots, x_{n-1})$
     """
-    return ((f(*(vals[:arg] + (vals[arg]+epsilon,) + vals[arg+1:])) 
-             - f(*(vals[:arg] + (vals[arg]-epsilon,) + vals[arg+1:])))
-            /(2*epsilon))
+    forward_diff = f(*(vals[:arg] + (vals[arg]+epsilon,) + vals[arg+1:]))
+    backward_diff = f(*(vals[:arg] + (vals[arg]-epsilon,) + vals[arg+1:]))
+    return (forward_diff - backward_diff) / (2 * epsilon)
 
 variable_count = 1
 
