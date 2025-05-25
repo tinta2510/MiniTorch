@@ -204,16 +204,18 @@ class IsClose(Function):
 class Permute(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
-        ord = tuple(int(i) for i in order.tuple()[0])
+        ord: list[int] = [int(i) for i in order.tuple()[0]]
         ctx.save_for_backward(ord)
-        a._tensor = a._tensor.permute(*ord)
-        return a
+        return minitorch.Tensor(a._tensor.permute(*ord), backend=a.backend)
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
         (order,) = ctx.saved_values
-        grad_output._tensor = grad_output._tensor.permute(*order)
-        return grad_output, 0.0
+        inv_order = [0] * len(order)
+        for i, j in enumerate(order):
+            inv_order[j] = i
+        return minitorch.Tensor(
+            grad_output._tensor.permute(*inv_order), backend=grad_output.backend), 0.0
 
 
 class View(Function):
