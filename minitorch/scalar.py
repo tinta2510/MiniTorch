@@ -166,13 +166,9 @@ class Scalar:
         assert h.last_fn is not None
         assert h.ctx is not None
 
-        chains = []
-        for input, grad in zip(h.inputs, tuple(h.last_fn.backward(h.ctx, d_output))):
-            # if input.is_leaf():
-            chains += [(input, grad)]
-            # else:
-            #     chains += input.chain_rule(grad)
-        return chains
+        grads = h.last_fn._backward(h.ctx, d_output)
+        assert len(grads) == len(h.inputs), f"Bug in function {h.last_fn}"
+        return list(zip(h.inputs, grads))
 
     def backward(self, d_output: Optional[float] = None) -> None:
         """

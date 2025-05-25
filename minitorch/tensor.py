@@ -144,6 +144,9 @@ class Tensor:
         return c
 
     # Functions
+    def __hash__(self) -> int:
+        return hash(self.unique_id)
+    
     def __add__(self, b: TensorLike) -> Tensor:
         return Add.apply(self, self._ensure_tensor(b))
 
@@ -210,6 +213,8 @@ class Tensor:
     def sum(self, dim: Optional[int] = None) -> Tensor:
         "Compute the sum over dimension `dim`"
         if dim is None:
+            cont = self.contiguous()
+            assert cont._tensor.is_contiguous(), cont
             return Sum.apply(self.contiguous().view(self.size), self._ensure_tensor(0))
         else:
             return Sum.apply(self, self._ensure_tensor(dim))

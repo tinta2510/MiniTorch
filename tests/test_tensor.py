@@ -30,6 +30,7 @@ def test_one_args(
     name, base_fn, tensor_fn = fn
     t2 = tensor_fn(t1)
     for ind in t2._tensor.indices():
+        assert abs(t2[ind]-base_fn(t1[ind])) < 1e-2, f"{t1=}\n{t2=}\n{t2[ind]=}&&{base_fn(t1[ind])=}"
         assert_close(t2[ind], base_fn(t1[ind]))
 
 
@@ -63,10 +64,8 @@ def test_one_derivative(
 def test_permute(data: DataObject, t1: Tensor) -> None:
     "Test the permute function"
     permutation = data.draw(permutations(range(len(t1.shape))))
-
     def permute(a: Tensor) -> Tensor:
         return a.permute(*permutation)
-
     grad_check(permute, t1)
 
 

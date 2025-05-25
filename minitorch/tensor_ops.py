@@ -12,6 +12,7 @@ from .tensor_data import (
     index_to_position,
     shape_broadcast,
     to_index,
+    strides_from_shape
 )
 
 if TYPE_CHECKING:
@@ -264,9 +265,22 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
-
+        if np.array_equal(in_shape, out_shape):
+            in_index: Index = np.array(in_shape)
+            for i, val in enumerate(strides_from_shape(out_shape)):
+                out_strides[i] = val
+            for out_pos in range(len(out)):
+                to_index(out_pos, out_shape, in_index)
+                in_pos = index_to_position(in_index, in_strides)
+                out[out_pos] = fn(in_storage[in_pos])
+        else:
+            in_index: Index = np.array(in_shape)
+            out_index: Index = np.array(out_shape)
+            for out_pos in range(len(out)):
+                to_index(out_pos, out_shape, out_index)
+                broadcast_index(out_index, out_shape, in_shape, in_index)
+                in_pos = index_to_position(in_index, in_strides)
+                out[out_pos] = fn(in_storage[in_pos])
     return _map
 
 
@@ -309,9 +323,25 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
-
+        if np.array_equal(a_shape, b_shape):
+            index = np.array(a_shape)
+            for i in range(len(a_storage)):
+                to_index(i, a_shape, index)
+                a_pos = index_to_position(index, a_strides)
+                b_pos = index_to_position(index, b_strides)
+                out_pos = index_to_position(index, out_strides)
+                out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
+        else:
+            out_index = np.array(out_shape)
+            a_index = np.array(a_shape)
+            b_index = np.array(b_shape)
+            for out_pos in range(len(out)):
+                to_index(out_pos, out_shape, out_index)
+                broadcast_index(out_index, out_shape, a_shape, a_index)
+                broadcast_index(out_index, out_shape, b_shape, b_index)
+                a_pos = index_to_position(a_index, a_strides)
+                b_pos = index_to_position(b_index, b_strides)
+                out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
     return _zip
 
 
@@ -340,9 +370,13 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
-
+        a_index = np.array(a_shape)
+        for out_pos in range(len(out)):
+            to_index(out_pos, out_shape, a_index)
+            for i in range(a_shape[reduce_dim]):
+                a_index[reduce_dim] = i
+                a_pos = index_to_position(a_index, a_strides)
+                out[out_pos] = fn(out[out_pos], a_storage[a_pos])
     return _reduce
 
 

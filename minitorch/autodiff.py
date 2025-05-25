@@ -96,7 +96,8 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
         else:
             chains = node.chain_rule(curr_derivs[node])
             for var, grad in chains:
-                curr_derivs[var] += grad
+                if var in curr_derivs:
+                    curr_derivs[var] += grad
 
 @dataclass
 class Context:

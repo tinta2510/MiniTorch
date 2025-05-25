@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
+from functools import reduce
 import numba
 import numpy as np
 import numpy.typing as npt
@@ -19,18 +20,22 @@ class IndexingError(RuntimeError):
     pass
 
 
-Storage: TypeAlias = npt.NDArray[np.float64]
+Storage: TypeAlias = npt.NDArray[np.float64] # Store core data of tensor 
 OutIndex: TypeAlias = npt.NDArray[np.int32]
-Index: TypeAlias = npt.NDArray[np.int32]
+Index: TypeAlias = npt.NDArray[np.int32] # Store user indexing tuple
 Shape: TypeAlias = npt.NDArray[np.int32]
-Strides: TypeAlias = npt.NDArray[np.int32]
-
+Strides: TypeAlias = npt.NDArray[np.int32] 
+"""
+Tensor strides define how many memory locations you need to skip in 
+each dimension to move to the next element along that dimension.
+Note: Stride != Shape
+"""
 UserIndex: TypeAlias = Sequence[int]
 UserShape: TypeAlias = Sequence[int]
 UserStrides: TypeAlias = Sequence[int]
 
 
-def index_to_position(index: Index, strides: Strides) -> int:
+def index_to_position(index: Index, strides: Strides) -> np.int32:
     """
     Converts a multidimensional tensor `index` into a single-dimensional position in
     storage based on strides.
@@ -42,9 +47,7 @@ def index_to_position(index: Index, strides: Strides) -> int:
     Returns:
         Position in storage
     """
-
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError('Need to implement for Task 2.1')
+    return np.sum(index * strides, dtype=np.int32)
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
@@ -52,16 +55,20 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     Convert an `ordinal` to an index in the `shape`.
     Should ensure that enumerating position 0 ... size of a
     tensor produces every index exactly once. It
-    may not be the inverse of `index_to_position`.
+    may NOT be the inverse of `index_to_position`.
 
+    Ordinal --to_index()--> Index --index_to_position()--> Position on Storage
     Args:
         ordinal: ordinal position to convert.
         shape : tensor shape.
         out_index : return index corresponding to position.
 
     """
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError('Need to implement for Task 2.1')
+    # Not actual strides of TensorData
+    tmp_strides = strides_from_shape(shape)
+    for i in range(len(shape)):
+        out_index[i] = ordinal // tmp_strides[i]
+        ordinal %= tmp_strides[i]
 
 
 def broadcast_index(
@@ -83,8 +90,12 @@ def broadcast_index(
     Returns:
         None
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError('Need to implement for Task 2.2')
+    stop_pos = len(big_shape) - len(shape)
+    for i, (idx, dim) in enumerate(zip(big_index[stop_pos:], shape)):
+        if dim == 1:
+            out_index[i] = 0
+        else:
+            out_index[i] = idx
 
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
@@ -101,14 +112,37 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     Raises:
         IndexingError : if cannot broadcast
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError('Need to implement for Task 2.2')
+    # Convert ndarrays to tuples (for type-compatible)
+    if isinstance(shape1, np.ndarray):
+        shape1 = tuple(shape1)
+    if isinstance(shape2, np.ndarray):
+        shape2 = tuple(shape2)
+        
+    len1 = len(shape1)
+    len2 = len(shape2)
+    if len1 < len2:
+        shape1 = (1,)*(len2-len1) + shape1
+    elif len2 < len1:
+        shape2 = (1,)*(len1-len2) + shape2
+
+    result = []        
+    for d1, d2 in zip(shape1, shape2):
+        if d1 == d2:
+            result.append(d1)
+        elif d1 == 1:
+            result.append(d2)
+        elif d2 == 1:
+            result.append(d1)
+        else:
+            raise IndexingError
+    return tuple(result)
 
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
     layout = [1]
     offset = 1
     for s in reversed(shape):
+        assert s * offset != 0, f"{shape},{offset}"
         layout.append(s * offset)
         offset = s * offset
     return tuple(reversed(layout[:-1]))
@@ -226,9 +260,9 @@ class TensorData:
         assert list(sorted(order)) == list(
             range(len(self.shape))
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
-
-        # TODO: Implement for Task 2.1.
-        raise NotImplementedError('Need to implement for Task 2.1')
+        return TensorData(self._storage,
+                          tuple(self.shape[i] for i in order),
+                          tuple(self.strides[i] for i in order))
 
     def to_string(self) -> str:
         s = ""
