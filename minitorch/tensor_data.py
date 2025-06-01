@@ -64,12 +64,10 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    # Not actual strides of TensorData
-    tmp_strides = strides_from_shape(shape)
+    stride = reduce(lambda acc, ele: acc*ele, shape,1)
     for i in range(len(shape)):
-        out_index[i] = ordinal // tmp_strides[i]
-        ordinal %= tmp_strides[i]
-
+        stride /= shape[i]
+        out_index[i] = (ordinal // stride) % shape[i]
 
 def broadcast_index(
     big_index: Index, big_shape: Shape, shape: Shape, out_index: OutIndex
@@ -111,13 +109,7 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
 
     Raises:
         IndexingError : if cannot broadcast
-    """
-    # Convert ndarrays to tuples (for type-compatible)
-    if isinstance(shape1, np.ndarray):
-        shape1 = tuple(shape1)
-    if isinstance(shape2, np.ndarray):
-        shape2 = tuple(shape2)
-        
+    """ 
     len1 = len(shape1)
     len2 = len(shape2)
     if len1 < len2:
