@@ -279,7 +279,6 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        
         for out_pos in prange(len(out)):
             a_index = np.empty(len(a_shape), dtype=np.int32)
             to_index(out_pos, out_shape, a_index)
