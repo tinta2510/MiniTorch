@@ -226,7 +226,6 @@ def tensor_zip(
         b_strides: Strides,
     ) -> None:
         if shapes_equal(a_shape, b_shape):
-            
             for i in prange(len(a_storage)):
                 index = np.empty(len(a_shape), dtype=np.int32)
                 to_index(i, a_shape, index)
@@ -235,7 +234,6 @@ def tensor_zip(
                 out_pos = index_to_position(index, out_strides)
                 out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
         else:
-            
             for out_pos in prange(len(out)):
                 out_index = np.empty(len(out_shape), dtype=np.int32)
                 a_index = np.empty(len(a_shape), dtype=np.int32)
