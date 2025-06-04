@@ -122,15 +122,6 @@ class CudaOps(TensorOps):
 
 
 # Implement
-@cuda.jit(device=True)
-def shapes_equal(a, b):
-    if len(a) != len(b):
-        return False
-    for i in range(len(a)):
-        if a[i] != b[i]:
-            return False
-    return True
-
 def tensor_map(
     fn: Callable[[float], float]
 ) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides], None]:
@@ -160,22 +151,13 @@ def tensor_map(
         
         if out_pos >= out_size:
             return
-        
-        if shapes_equal(in_shape, out_shape):
-            if shapes_equal(in_strides, out_strides):
-                out[out_pos] = fn(in_storage[out_pos])
-            else:
-                in_index = cuda.local.array(MAX_DIMS, numba.int32)
-                to_index(out_pos, out_shape, in_index)
-                in_pos = index_to_position(in_index, in_strides)
-                out[out_pos] = fn(in_storage[in_pos])
-        else:
-            out_index = cuda.local.array(MAX_DIMS, numba.int32)
-            in_index = cuda.local.array(MAX_DIMS, numba.int32)
-            to_index(out_pos, out_shape, out_index)
-            broadcast_index(out_index, out_shape, in_shape, in_index)
-            in_pos = index_to_position(in_index, in_strides)
-            out[out_pos] = fn(in_storage[in_pos])
+
+        out_index = cuda.local.array(MAX_DIMS, numba.int32)
+        in_index = cuda.local.array(MAX_DIMS, numba.int32)
+        to_index(out_pos, out_shape, out_index)
+        broadcast_index(out_index, out_shape, in_shape, in_index)
+        in_pos = index_to_position(in_index, in_strides)
+        out[out_pos] = fn(in_storage[in_pos])
 
     return cuda.jit()(_map)  # type: ignore
 
@@ -210,28 +192,18 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-
-
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
-        if shapes_equal(a_shape, b_shape):
-            index = cuda.local.array(MAX_DIMS, numba.int32)
-            to_index(i, a_shape, index)
-            a_pos = index_to_position(index, a_strides)
-            b_pos = index_to_position(index, b_strides)
-            out_pos = index_to_position(index, out_strides)
-            out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
-        else:
-            out_index = cuda.local.array(MAX_DIMS, numba.int32)
-            a_index = cuda.local.array(MAX_DIMS, numba.int32)
-            b_index = cuda.local.array(MAX_DIMS, numba.int32) 
-            to_index(i, out_shape, out_index)
-            broadcast_index(out_index, out_shape, a_shape, a_index)
-            broadcast_index(out_index, out_shape, b_shape, b_index)
-            a_pos = index_to_position(a_index, a_strides)
-            b_pos = index_to_position(b_index, b_strides)
-            out[i] = fn(a_storage[a_pos], b_storage[b_pos])
-            
+        out_index = cuda.local.array(MAX_DIMS, numba.int32)
+        a_index = cuda.local.array(MAX_DIMS, numba.int32)
+        b_index = cuda.local.array(MAX_DIMS, numba.int32) 
+        to_index(i, out_shape, out_index)
+        broadcast_index(out_index, out_shape, a_shape, a_index)
+        broadcast_index(out_index, out_shape, b_shape, b_index)
+        a_pos = index_to_position(a_index, a_strides)
+        b_pos = index_to_position(b_index, b_strides)
+        out[i] = fn(a_storage[a_pos], b_storage[b_pos])
+        
     return cuda.jit()(_zip)  # type: ignore
 
 

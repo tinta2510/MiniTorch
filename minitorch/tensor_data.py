@@ -35,7 +35,7 @@ UserShape: TypeAlias = Sequence[int]
 UserStrides: TypeAlias = Sequence[int]
 
 
-def index_to_position(index: Index, strides: Strides) -> np.int32:
+def index_to_position(index: Index, strides: Strides) -> int:
     """
     Converts a multidimensional tensor `index` into a single-dimensional position in
     storage based on strides.
@@ -47,8 +47,10 @@ def index_to_position(index: Index, strides: Strides) -> np.int32:
     Returns:
         Position in storage
     """
-    return np.sum(index * strides, dtype=np.int32)
-
+    pos = 0
+    for i in range(len(strides)):
+        pos += index[i] * strides[i]
+    return pos
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """
