@@ -116,6 +116,7 @@ class FastOps(TensorOps):
             both_2d += 1
         both_2d = both_2d == 2
 
+        # batch dimensions are broadcasted to support element-wise mat_mul
         ls = list(shape_broadcast(a.shape[:-2], b.shape[:-2]))
         ls.append(a.shape[-2])
         ls.append(b.shape[-1])
@@ -167,16 +168,14 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        if shapes_equal(in_shape, out_shape):
-            # Initialize in_index
-            
-
+        if shapes_equal(in_shape, out_shape):   
             if shapes_equal(in_strides, out_strides):
                 # Fully aligned: directly apply fn
                 for pos in prange(len(out)):
                     out[pos] = fn(in_storage[pos])
             else:
                 for out_pos in prange(len(out)):
+                    # Initialize in_index
                     in_index = np.empty(len(in_shape), dtype=np.int32)
                     to_index(out_pos, out_shape, in_index)
                     in_pos = index_to_position(in_index, in_strides)
@@ -333,11 +332,23 @@ def _tensor_matrix_multiply(
     Returns:
         None : Fills in `out`
     """
-    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
+    # Strides for broadcasted case
+    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0 
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
+    B, M, K = a_shape
+    _, _, N = b_shape
 
-    # TODO: Implement for Task 3.2.
-    raise NotImplementedError('Need to implement for Task 3.2')
+    for pos in prange(B*M*N):
+        # out[n, i, j] += sigma_k(a[n, i, k] * b[n, k, j])
+        n, ij = divmod(pos, M*N)
+        i, j = divmod(ij, N)
+        result = 0.0
+        for k in range(K):
+            a_idx = n*a_batch_stride + i*a_strides[1] + k*a_strides[2]
+            b_idx = n*b_batch_stride + k*b_strides[1] + j*b_strides[2]
+            result += a_storage[int(a_idx)] * b_storage[int(b_idx)]
+        out_idx = n*out_strides[0] + i*out_strides[1] + j*out_strides[2]
+        out[int(out_idx)] = result
 
 
 tensor_matrix_multiply = njit(parallel=True, fastmath=True)(_tensor_matrix_multiply)
