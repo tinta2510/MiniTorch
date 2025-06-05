@@ -80,9 +80,32 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError('Need to implement for Task 4.1')
+    for i in prange(batch * out_channels * out_width):
+        b, rem = divmod(i, out_channels * out_width)
+        oc, w = divmod(rem, out_width)
 
+        total = 0.0
+        for ic in range(in_channels):
+            for k in range(kw):
+                if reverse: # For backward pass
+                    input_pos = w - k
+                else:
+                    input_pos = w + k
+                if 0 <= input_pos < width:
+                    input_idx = int(
+                        b * s1[0] + ic * s1[1] + input_pos * s1[2]
+                    )
+                    weight_k = k if not reverse else kw - 1 - k
+                    weight_idx = int(
+                        oc * s2[0] + ic * s2[1] + weight_k * s2[2]
+                    )
+                    total += input[input_idx] * weight[weight_idx]
+        out_idx = int(
+            b * out_strides[0]
+            + oc * out_strides[1]
+            + w * out_strides[2]
+        )
+        out[out_idx] = total
 
 tensor_conv1d = njit(parallel=True)(_tensor_conv1d)
 
@@ -190,7 +213,7 @@ def _tensor_conv2d(
         weight_strides (Strides): strides for `input` tensor.
         reverse (bool): anchor weight at top-left or bottom-right
     """
-    batch_, out_channels, _, _ = out_shape
+    batch_, out_channels, out_height, out_width = out_shape
     batch, in_channels, height, width = input_shape
     out_channels_, in_channels_, kh, kw = weight_shape
 
@@ -206,9 +229,38 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError('Need to implement for Task 4.2')
-
+    for it in prange(batch * out_channels * out_height * out_width):
+        b, rem = divmod(it, out_channels * out_height * out_width)
+        oc, rem2 = divmod(rem, out_height * out_width)
+        h, w = divmod(rem2, out_width)
+        
+        total = 0.0
+        for ic in range(in_channels):
+            for i in range(kh):
+                for j in range(kw):
+                    if reverse:
+                        input_h = h - i
+                        input_w = w - j 
+                    else:
+                        input_h = h + i
+                        input_w = w + j
+                    if 0 <= input_h < height and 0 <= input_w < width:
+                        input_idx = int(
+                            b*s10 + ic*s11 + input_h*s12 + input_w*s13
+                        )     
+                        i_weight = i if not reverse else kh-1-i
+                        j_weight = j if not reverse else kw-1-j
+                        weight_idx = int(
+                            oc*s20 + ic*s21 + i_weight*s22 + j_weight*s23
+                        )
+                        total += input[input_idx] * weight[weight_idx]
+        out_idx = int(
+            b*out_strides[0] 
+            + oc*out_strides[1]
+            + h*out_strides[2]
+            + w*out_strides[3]
+        )
+        out[out_idx] = total        
 
 tensor_conv2d = njit(parallel=True, fastmath=True)(_tensor_conv2d)
 
