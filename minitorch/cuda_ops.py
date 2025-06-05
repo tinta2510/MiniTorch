@@ -21,9 +21,9 @@ from .tensor_ops import MapProto, TensorOps
 # If you get an error, read the docs for NUMBA as to what is allowed
 # in these functions.
 
-to_index = cuda.jit(arch="sm_75", device=True)(to_index)
-index_to_position = cuda.jit(arch="sm_75", device=True)(index_to_position)
-broadcast_index = cuda.jit(arch="sm_75", device=True)(broadcast_index)
+to_index = cuda.jit(cc=(7, 5), device=True)(to_index)
+index_to_position = cuda.jit(cc=(7, 5), device=True)(index_to_position)
+broadcast_index = cuda.jit(cc=(7, 5), device=True)(broadcast_index)
 
 THREADS_PER_BLOCK = 32
 
@@ -34,7 +34,7 @@ class CudaOps(TensorOps):
     @staticmethod
     def map(fn: Callable[[float], float]) -> MapProto:
         "See `tensor_ops.py`"
-        f = tensor_map(cuda.jit(arch="sm_75", device=True)(fn))
+        f = tensor_map(cuda.jit(cc=(7, 5), device=True)(fn))
 
         def ret(a: Tensor, out: Optional[Tensor] = None) -> Tensor:
             if out is None:
@@ -50,7 +50,7 @@ class CudaOps(TensorOps):
 
     @staticmethod
     def zip(fn: Callable[[float, float], float]) -> Callable[[Tensor, Tensor], Tensor]:
-        f = tensor_zip(cuda.jit(arch="sm_75", device=True)(fn))
+        f = tensor_zip(cuda.jit(cc=(7, 5), device=True)(fn))
 
         def ret(a: Tensor, b: Tensor) -> Tensor:
             c_shape = shape_broadcast(a.shape, b.shape)
@@ -68,7 +68,7 @@ class CudaOps(TensorOps):
     def reduce(
         fn: Callable[[float, float], float], start: float = 0.0
     ) -> Callable[[Tensor, int], Tensor]:
-        f = tensor_reduce(cuda.jit(arch="sm_75", device=True)(fn))
+        f = tensor_reduce(cuda.jit(cc=(7, 5), device=True)(fn))
 
         def ret(a: Tensor, dim: int) -> Tensor:
             out_shape = list(a.shape)
@@ -159,7 +159,7 @@ def tensor_map(
         in_pos = index_to_position(in_index, in_strides)
         out[out_pos] = fn(in_storage[in_pos])
 
-    return cuda.jit(arch="sm_75")(_map)  # type: ignore
+    return cuda.jit(cc=(7, 5))(_map)  # type: ignore
 
 
 def tensor_zip(
@@ -204,7 +204,7 @@ def tensor_zip(
         b_pos = index_to_position(b_index, b_strides)
         out[i] = fn(a_storage[a_pos], b_storage[b_pos])
         
-    return cuda.jit(arch="sm_75")(_zip)  # type: ignore
+    return cuda.jit(cc=(7, 5))(_zip)  # type: ignore
 
 
 def _sum_practice(out: Storage, a: Storage, size: int) -> None:
@@ -238,7 +238,7 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     raise NotImplementedError('Need to implement for Task 3.3')
 
 
-jit_sum_practice = cuda.jit(arch="sm_75")(_sum_practice)
+jit_sum_practice = cuda.jit(cc=(7, 5))(_sum_practice)
 
 
 def sum_practice(a: Tensor) -> TensorData:
@@ -287,7 +287,7 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         raise NotImplementedError('Need to implement for Task 3.3')
 
-    return cuda.jit(arch="sm_75")(_reduce)  # type: ignore
+    return cuda.jit(cc=(7, 5))(_reduce)  # type: ignore
 
 
 def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
@@ -325,7 +325,7 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     raise NotImplementedError('Need to implement for Task 3.3')
 
 
-jit_mm_practice = cuda.jit(arch="sm_75")(_mm_practice)
+jit_mm_practice = cuda.jit(cc=(7, 5))(_mm_practice)
 
 
 def mm_practice(a: Tensor, b: Tensor) -> TensorData:
@@ -395,4 +395,4 @@ def _tensor_matrix_multiply(
     raise NotImplementedError('Need to implement for Task 3.4')
 
 
-tensor_matrix_multiply = cuda.jit(arch="sm_75")(_tensor_matrix_multiply)
+tensor_matrix_multiply = cuda.jit(cc=(7, 5))(_tensor_matrix_multiply)
