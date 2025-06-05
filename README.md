@@ -1,2 +1,43 @@
 # MiniTorch - Re-implement Torch from scratch
-A minimalist, educational re-implementation of core Pytorch's components. This project is based on the [MiniTorch](https://github.com/minitorch/minitorch) public template and aims to understand the internals of automatic differentiation, tensor operations, and neural network operations.
+MiniTorch is a minimalist, educational re-implementation of core Pytorch's components, based on the [MiniTorch](https://github.com/minitorch/minitorch) educational template. This project covers automatic differentiation, tensors, neural network modules, and optimized computation via parallelism and CUDA. It is designed to mirror the architecture of PyTorch while building it up from fundamental principles.
+
+## Overview
+- Rebuilt PyTorch from the [MiniTorch](https://github.com/minitorch/minitorch) template with fundamental libraries, such as `numpy`, `numba`.
+- Implemented autograd system with backpropagation.
+- Implemented `Tensor` class supporting broadcasting, strides, views, and permutings.
+- Integrated Numba-based parallelism.
+- Built and trained models using `MiniTorch` for real-world tasks like MNIST and sentiment classification.
+
+## Core Concepts Implemented
+
+### Autograd Engine (`Scalar` & `Tensor`)
+- Built forward/backward computation graphs
+- Implemented `Scalar` and `Tensor` classes with `.backward()` support
+- Topological sorting of computation graph for efficient gradient propagation
+- Applied the chain rule for automatic differentiation
+- Gradient accumulation for leaf variables
+
+### `Tensor` Class
+- Supported broadcasting and shape inference
+- Implemented strides, views, and permutation of tensor dimensions
+- Core low-level tensor operations:
+  - `tensor_map`: apply functions element-wise
+  - `tensor_zip`: apply binary functions element-wise
+  - `tensor_reduce`: reduce tensor values along a dimension
+
+### Optimized Computation
+- Numba-parallelized backends in `fast_ops.py`
+- Matrix multiplication with CPU parallelization
+- (Partially) CUDA tensor operations in `cuda_ops.py`
+  - Tensor map, zip, and reduce functions
+  - Practice GPU kernels for matrix multiplication and reduction
+
+### Deep Learning Modules
+- Basic neural network layers: Linear, ReLU, Sigmoid
+- Advanced layers: Softmax, Dropout, LogSoftmax
+- 1D and 2D Convolution using Numba (`fast_conv.py`)
+- 2D Pooling operations with tiling for avgpool and maxpool
+- Trained networks for:
+  - Point classification (Simple, Split, XOR)
+  - MNIST digit recognition (LeNet-style CNN)
+  - Sentiment classification (SST2)
