@@ -11,6 +11,7 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     """
     Reshape an image tensor for 2D pooling
 
+    Cut the image into little tiles -> easy to pick the best number from each tile (pooling!)
     Args:
         input: batch x channel x height x width
         kernel: height x width of pooling
@@ -23,8 +24,18 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     kh, kw = kernel
     assert height % kh == 0
     assert width % kw == 0
-    # TODO: Implement for Task 4.3.
-    raise NotImplementedError('Need to implement for Task 4.3')
+    
+    new_h = height // kh
+    new_w = width // kw    
+    
+    # Step 1: Reshape height and width into (new_h, kh) and (new_w, kw)
+    reshaped = input.contiguous().view(batch, channel, new_h, kh, new_w, kw)
+
+    # Step 2: Move kh and kw to the last dimension, then flatten them
+    transposed = reshaped.permute(0, 1, 2, 4, 3, 5)  # B, C, new_h, new_w, kh, kw
+    tiled = transposed.contiguous().view(batch, channel, new_h, new_w, kh * kw)
+
+    return tiled, new_h, new_w
 
 
 def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
@@ -39,8 +50,12 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
         Pooled tensor
     """
     batch, channel, height, width = input.shape
-    # TODO: Implement for Task 4.3.
-    raise NotImplementedError('Need to implement for Task 4.3')
+    # Step 1: Tile the input
+    tiled, new_h, new_w = tile(input, kernel)  # shape: (B, C, new_h, new_w, KH*KW)
+
+    # Step 2: Take the average across the last dimension (the flattened tile)
+    return tiled.mean(dim=4).contiguous().view(input.shape[0], input.shape[1], new_h, new_w)
+
 
 
 max_reduce = FastOps.reduce(operators.max, -1e9)
