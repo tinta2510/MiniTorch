@@ -25,6 +25,7 @@ jobs:
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
+        # Currently skip flake8
         flake8 --ignore "N801, E203, E266, E501, W503, F812, F401, F841, E741, N803, N802, N806" minitorch/ tests/ project/ || true
     - name: Test with pytest
       run: |
@@ -46,6 +47,7 @@ jobs:
         echo "Module 3"
         pytest tests -x -m task3_1
         pytest tests -x -m task3_2
+        # Currently skip task 3.3, 3.4
         pytest tests -x -m task3_3 || true
         pytest tests -x -m task3_4 || true
         echo "Module 4"

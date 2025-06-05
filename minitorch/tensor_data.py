@@ -50,7 +50,7 @@ def index_to_position(index: Index, strides: Strides) -> int:
     pos = 0
     for i in range(len(strides)):
         pos += index[i] * strides[i]
-    return pos
+    return int(pos)
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
     """
