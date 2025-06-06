@@ -79,7 +79,8 @@ def _tensor_conv1d(
     )
     s1 = input_strides
     s2 = weight_strides
-
+    s10, s11, s12 = s1[0], s1[1], s1[2]
+    s20, s21, s22 = s2[0], s2[1], s2[2]
     for i in prange(batch * out_channels * out_width):
         b, rem = divmod(i, out_channels * out_width)
         oc, w = divmod(rem, out_width)
@@ -93,17 +94,17 @@ def _tensor_conv1d(
                     input_pos = w + k
                 if 0 <= input_pos < width:
                     input_idx = int(
-                        b * s1[0] + ic * s1[1] + input_pos * s1[2]
+                        b*s10 + ic*s11 + input_pos*s12
                     )
                     weight_k = k if not reverse else kw - 1 - k
                     weight_idx = int(
-                        oc * s2[0] + ic * s2[1] + weight_k * s2[2]
+                        oc*s20 + ic*s21 + weight_k*s22
                     )
                     total += input[input_idx] * weight[weight_idx]
         out_idx = int(
-            b * out_strides[0]
-            + oc * out_strides[1]
-            + w * out_strides[2]
+            b*out_strides[0]
+            + oc*out_strides[1]
+            + w*out_strides[2]
         )
         out[out_idx] = total
 
