@@ -377,3 +377,49 @@ class Tensor:
         Reset the derivative on this variable.
         """
         self.grad = None
+        
+    def unsqueeze(self, dim: int) -> "Tensor":
+        """
+        Return a new tensor with a size of 1 inserted at the specified position.
+        E.g., shape (3, 4) → unsqueeze(1) → (3, 1, 4)
+        """
+        shape = list(self.shape)
+        shape.insert(dim, 1)
+        return self.view(*shape)
+
+def concat(tensors: List[Tensor], dim: int = 0) -> Tensor:
+    """
+    Concatenate a list of tensors along an existing dimension `dim`.
+    All tensors must have the same shape in all other dimensions.
+    """
+    assert len(tensors) > 0, "Need at least one tensor to concat"
+    ref_shape = list(tensors[0].shape)
+    for t in tensors:
+        for i in range(len(ref_shape)):
+            if i != dim:
+                assert t.shape[i] == ref_shape[i], f"Mismatch at dim {i}"
+
+    # Create output shape with updated size along `dim`
+    out_shape = list(ref_shape)
+    out_shape[dim] = sum(t.shape[dim] for t in tensors)
+    result = tensors[0].zeros(tuple(out_shape))
+
+    # Offset index along `dim`
+    offset = 0
+    for t in tensors:
+        for idx in t._tensor.indices():
+            new_idx = list(idx)
+            new_idx[dim] += offset
+            result[tuple(new_idx)] = t[tuple(idx)]
+        offset += t.shape[dim]
+
+    return result
+
+def stack(tensors: List[Tensor], dim: int = 0) -> Tensor:
+    assert len(tensors) > 0, "Need at least one tensor to stack"
+    shape = tensors[0].shape
+    for t in tensors:
+        assert t.shape == shape, "All tensors must have the same shape"
+
+    expanded = [t.unsqueeze(dim) for t in tensors]
+    return concat(expanded, dim=dim)

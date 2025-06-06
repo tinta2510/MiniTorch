@@ -7,6 +7,7 @@ MiniTorch is a minimalist, educational re-implementation of core Pytorch's compo
 - Implemented `Tensor` class supporting broadcasting, strides, views, and permutings.
 - Integrated Numba-based parallelism.
 - Built and trained models using `MiniTorch` for real-world tasks like MNIST and sentiment classification.
+- Implemented RNN layer for sequence modeling and temporal data
 
 ## Core Concepts Implemented
 
@@ -37,11 +38,14 @@ MiniTorch is a minimalist, educational re-implementation of core Pytorch's compo
 - Advanced layers: Softmax, Dropout, LogSoftmax
 - 1D and 2D Convolution using Numba (`fast_conv.py`)
 - 2D Pooling operations with tiling for avgpool and maxpool
+- Recurrent Neural Network (RNN) layer:
+  - Implemented custom RNN cell supporting sequential data
+  - Trained on temporal classification tasks (e.g., sentiment analysis over token sequences)
 <!-- - Trained networks for:
   - Point classification (Simple, Split, XOR)
   - MNIST digit recognition (LeNet-style CNN)
   - Sentiment classification (SST2) -->
-
+  
 ## Project Structure
 ```graphql
 minitorch/
