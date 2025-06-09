@@ -7,4 +7,5 @@ python-mnist
 streamlit==1.12.0
 streamlit-ace
 torch
+torchtext
 watchdog==1.0.2

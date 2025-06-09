@@ -107,7 +107,6 @@ def dropout(input: Tensor, rate: float, ignore: bool = False) -> Tensor:
     return input * mask / (1.0 - rate)
 
 
-
 def RParam(*shape):
     r = 0.1 * (rand(shape, backend=BACKEND) - 0.5)
     return Parameter(r)
@@ -249,3 +248,194 @@ class RNN(Module):
         
         return stack(outputs)
     
+class GRUCell(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        
+        # Reset gate parameters
+        self.W_ir = RParam(input_size, hidden_size)
+        self.W_hr = RParam(hidden_size, hidden_size)
+        self.b_r = RParam(hidden_size)
+        
+        # Update gate parameters
+        self.W_iz = RParam(input_size, hidden_size)
+        self.W_hz = RParam(hidden_size, hidden_size)
+        self.b_z = RParam(hidden_size)
+        
+        # Candidate hidden state parameters
+        self.W_ih = RParam(input_size, hidden_size)
+        self.W_hh = RParam(hidden_size, hidden_size)
+        self.b_h = RParam(hidden_size)
+        
+    def forward(self, x: Tensor, h: Tensor) -> Tensor:
+        """
+        Forward pass for a single GRU cell.
+        
+        Args:
+            x: Input tensor of shape (batch_size, input_size).
+            h: Hidden state tensor of shape (batch_size, hidden_size).
+        
+        Returns:
+            New hidden state tensor of shape (batch_size, hidden_size).
+        """
+        # GRU Cell Computation:
+        # 1. Compute reset gate: r = sigmoid(W_ir @ x + W_hr @ h + b_r)
+        # 2. Compute update gate: z = sigmoid(W_iz @ x + W_hz @ h + b_z)
+        # 3. Compute new gate: n = tanh(W_in @ x + W_hn @ (r * h) + b_h)
+        # 4. Compute new hidden state: h_new = (1 - z) * n + z * h
+
+        # The update gate z_t controls how much of the previous state is retained.
+        # The reset gate r_t controls how much of the previous state influences the candidate.
+
+        # Reset gate
+        r = (x @ self.W_ir.value + h @ self.W_hr.value + self.b_r.value).sigmoid()
+        
+        # Update gate
+        z = (x @ self.W_iz.value + h @ self.W_hz.value + self.b_z.value).sigmoid()
+        
+        # Candidate hidden state
+        h_tilde = (x @ self.W_ih.value + (r * h) @ self.W_hh.value + self.b_h.value).tanh()
+        
+        # New hidden state
+        h_new = (1 - z) * h_tilde + z * h
+        
+        return h_new        
+    
+class GRU(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.cell = GRUCell(input_size, hidden_size)
+        self.hidden_size = hidden_size
+        
+    def forward(self, x: Tensor, h0: Optional[Tensor] = None) -> Tensor:
+        """
+        Forward pass for the GRU over a sequence.
+        
+        Args:
+            x: Input tensor of shape (seq_len, batch_size, input_size)
+            h0: Initial hidden state of shape (batch_size, hidden_size)
+            
+        Returns:
+            Output tensor of shape (seq_len, batch_size, hidden_size)
+        """
+        # TODO: Implement the GRU forward pass over a sequence
+        # This should be similar to the RNN implementation but using the GRU cell
+        
+        batch_size = x.shape[1]
+        if h0 is None:
+            h = zeros((batch_size, self.hidden_size))
+        else:
+            h = h0
+            
+        outputs = []
+        for t in range(x.shape[0]):
+            h = self.cell(x[t], h)
+            outputs.append(h)
+        
+        return stack(outputs)
+
+class LSTMCell(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        
+        # Input gate parameters (i)
+        self.W_ii = RParam(input_size, hidden_size)  # input to input gate
+        self.W_hi = RParam(hidden_size, hidden_size)  # hidden to input gate
+        self.b_i = RParam(hidden_size)  # bias for input gate
+        
+        # Forget gate parameters (f)
+        self.W_if = RParam(input_size, hidden_size) 
+        self.W_hf = RParam(hidden_size, hidden_size)
+        self.b_f = RParam(hidden_size)  
+        
+        # External input gate parameters (g)
+        self.W_ig = RParam(input_size, hidden_size) 
+        self.W_hg = RParam(hidden_size, hidden_size)
+        self.b_g = RParam(hidden_size)
+        
+        # Output gate parameters (o)
+        self.W_io = RParam(input_size, hidden_size)
+        self.W_ho = RParam(hidden_size, hidden_size)
+        self.b_o = RParam(hidden_size)
+        
+    def forward(self, x: Tensor, state: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+        """
+        Forward pass for a single LSTM cell.
+        
+        Args:
+            x: Input tensor of shape (batch_size, input_size)
+            state: Tuple of (h, c) where both are of shape (batch_size, hidden_size)
+            
+        Returns:
+            Tuple containing:
+            - New hidden state h of shape (batch_size, hidden_size)
+            - Tuple of (new hidden state, new cell state)
+        """
+        # LSTM cell forward pass
+        # 1. Compute input gate: i = sigmoid(W_ii @ x + W_hi @ h + b_i)
+        # 2. Compute forget gate: f = sigmoid(W_if @ x + W_hf @ h + b_f)
+        # 3. Compute external input gate: g = tanh(W_ig @ x + W_hg @ h + b_g)
+        # 4. Compute output gate: o = sigmoid(W_io @ x + W_ho @ h + b_o)
+        # 5. Compute new internal state: c_new = f * c + i * g
+        # 6. Compute new hidden state: h_new = o * tanh(c_new)
+        
+        h, c = state
+        
+        # Calculate the input gate
+        i = (x @ self.W_ii.value + h @ self.W_hi.value + self.b_i.value).sigmoid()
+        
+        # Forget gate (f)
+        f = (x @ self.W_if.value + h @ self.W_hf.value + self.b_f.value).sigmoid()
+        
+        # External input gate (g)
+        g = (x @ self.W_ig.value + h @ self.W_hg.value + self.b_g.value).tanh()
+        
+        # Output gate (o)
+        o = (x @ self.W_io.value + h @ self.W_ho.value + self.b_o.value).sigmoid()
+        
+        # Internal state (c_new)
+        c_new = f*c + i*g
+        
+        # New hidden state (h_new)
+        h_new = o * c_new.tanh()
+        
+        return h_new, (h_new, c_new)
+
+
+class LSTM(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.cell = LSTMCell(input_size, hidden_size)
+        self.hidden_size = hidden_size
+        
+    def forward(self, x: Tensor, state: Optional[Tuple[Tensor, Tensor]] = None) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+        """
+        Forward pass for the LSTM over a sequence.
+        
+        Args:
+            x: Input tensor of shape (seq_len, batch_size, input_size)
+            state: Initial state tuple (h0, c0) where both have shape (batch_size, hidden_size)
+            
+        Returns:
+            Tuple containing:
+            - Output tensor of shape (seq_len, batch_size, hidden_size)
+            - Tuple of final (hidden_state, cell_state)
+        """
+        seq_len, batch_size, _ = x.shape
+        
+        if state is None:
+            h = zeros((batch_size, self.hidden_size))
+            c = zeros((batch_size, self.hidden_size))
+        else:
+            h, c = state
+            
+        outputs = []
+        for t in range(seq_len):
+            h, (h, c) = self.cell(x[t], (h, c))
+            outputs.append(h)
+            
+        return stack(outputs), (h, c)
