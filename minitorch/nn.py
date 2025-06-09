@@ -237,13 +237,23 @@ class RNN(Module):
         Returns:
             Output tensor of shape (seq_len, batch_size, hidden_size).
         """
-        batch_size = x.shape[1]
+        seq_len, batch_size, input_size = x.shape
         if not h0:
             h0 = zeros((batch_size, self.hidden_size))
         outputs = []
         
-        for t in range(x.shape[0]):
-            h = self.cell(x[t], h)
+        h = h0
+        # Process each time step
+        for t in range(seq_len):
+            # Extract the input at time t for all batches 
+            # due to MiniTorch not supporting partial indexing
+            x_t = zeros((batch_size, input_size))
+            for b in range(batch_size):
+                for i in range(input_size):
+                    x_t[b, i] = x._tensor._storage[x._tensor.index((t, b, i))]
+            
+            # Process through cell
+            h = self.cell(x_t, h)
             outputs.append(h)
         
         return stack(outputs)
@@ -299,7 +309,7 @@ class GRUCell(Module):
         h_tilde = (x @ self.W_ih.value + (r * h) @ self.W_hh.value + self.b_h.value).tanh()
         
         # New hidden state
-        h_new = (1 - z) * h_tilde + z * h
+        h_new = (tensor(1) - z) * h_tilde + z * h
         
         return h_new        
     
@@ -320,20 +330,25 @@ class GRU(Module):
         Returns:
             Output tensor of shape (seq_len, batch_size, hidden_size)
         """
-        # TODO: Implement the GRU forward pass over a sequence
-        # This should be similar to the RNN implementation but using the GRU cell
-        
-        batch_size = x.shape[1]
+        seq_len, batch_size, input_size = x.shape
         if h0 is None:
             h = zeros((batch_size, self.hidden_size))
         else:
             h = h0
             
         outputs = []
-        for t in range(x.shape[0]):
-            h = self.cell(x[t], h)
+                # Process each time step
+        for t in range(seq_len):
+            # Extract the input at time t for all batches
+            x_t = zeros((batch_size, input_size))
+            for b in range(batch_size):
+                for i in range(input_size):
+                    x_t[b, i] = x._tensor._storage[x._tensor.index((t, b, i))]
+            
+            # Process through cell
+            h = self.cell(x_t, h)
             outputs.append(h)
-        
+            
         return stack(outputs)
 
 class LSTMCell(Module):
@@ -425,8 +440,9 @@ class LSTM(Module):
             - Output tensor of shape (seq_len, batch_size, hidden_size)
             - Tuple of final (hidden_state, cell_state)
         """
-        seq_len, batch_size, _ = x.shape
+        seq_len, batch_size, input_size = x.shape
         
+        # Initialize hidden and cell states
         if state is None:
             h = zeros((batch_size, self.hidden_size))
             c = zeros((batch_size, self.hidden_size))
@@ -434,8 +450,18 @@ class LSTM(Module):
             h, c = state
             
         outputs = []
+        
+        # Process each time step
         for t in range(seq_len):
-            h, (h, c) = self.cell(x[t], (h, c))
+            # Extract the input at time t for all batches
+            x_t = zeros((batch_size, input_size))
+            for b in range(batch_size):
+                for i in range(input_size):
+                    x_t[b, i] = x._tensor._storage[x._tensor.index((t, b, i))]
+            
+            # Process through cell
+            h, (h, c) = self.cell(x_t, (h, c))
             outputs.append(h)
             
+        # Stack outputs along time dimension
         return stack(outputs), (h, c)

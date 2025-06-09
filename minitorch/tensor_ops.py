@@ -225,8 +225,53 @@ class SimpleOps(TensorOps):
         return ret
 
     @staticmethod
-    def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
-        raise NotImplementedError("Not implemented in this assignment")
+    def matrix_multiply(a: Tensor, b: Tensor) -> Tensor:
+        """
+        Batched tensor matrix multiply ::
+
+            for n:
+              for i:
+                for j:
+                  for k:
+                    out[n, i, j] += a[n, i, k] * b[n, k, j]
+
+        Where n indicates an optional broadcasted batched dimension.
+
+        Should work for tensor shapes of 3 dims ::
+
+            assert a.shape[-1] == b.shape[-2]
+
+        Args:
+            a : tensor data a
+            b : tensor data b
+
+        Returns:
+            New tensor data
+        """
+
+        # Make these always be a 3 dimensional multiply
+        both_2d = 0
+        if len(a.shape) == 2:
+            a = a.contiguous().view(1, a.shape[0], a.shape[1])
+            both_2d += 1
+        if len(b.shape) == 2:
+            b = b.contiguous().view(1, b.shape[0], b.shape[1])
+            both_2d += 1
+        both_2d = both_2d == 2
+
+        # batch dimensions are broadcasted to support element-wise mat_mul
+        ls = list(shape_broadcast(a.shape[:-2], b.shape[:-2]))
+        ls.append(a.shape[-2])
+        ls.append(b.shape[-1])
+        assert a.shape[-1] == b.shape[-2]
+        out = a.zeros(tuple(ls))
+
+        tensor_matrix_multiply(*out.tuple(), *a.tuple(), *b.tuple())
+
+        # Undo 3d if we added it.
+        if both_2d:
+            out = out.view(out.shape[1], out.shape[2])
+        return out
 
     is_cuda = False
 
@@ -386,6 +431,65 @@ def tensor_reduce(
                 a_pos = index_to_position(a_index, a_strides)
                 out[out_pos] = fn(out[out_pos], a_storage[a_pos])
     return _reduce
+
+def tensor_matrix_multiply(
+    out: Storage,
+    out_shape: Shape,
+    out_strides: Strides,
+    a_storage: Storage,
+    a_shape: Shape,
+    a_strides: Strides,
+    b_storage: Storage,
+    b_shape: Shape,
+    b_strides: Strides,
+) -> None:
+    """
+    NUMBA tensor matrix multiply function.
+
+    Should work for any tensor shapes that broadcast as long as
+
+    ```
+    assert a_shape[-1] == b_shape[-2]
+    ```
+
+    Optimizations:
+
+    * Outer loop in parallel
+    * No index buffers or function calls
+    * Inner loop should have no global writes, 1 multiply.
+
+
+    Args:
+        out (Storage): storage for `out` tensor
+        out_shape (Shape): shape for `out` tensor
+        out_strides (Strides): strides for `out` tensor
+        a_storage (Storage): storage for `a` tensor
+        a_shape (Shape): shape for `a` tensor
+        a_strides (Strides): strides for `a` tensor
+        b_storage (Storage): storage for `b` tensor
+        b_shape (Shape): shape for `b` tensor
+        b_strides (Strides): strides for `b` tensor
+
+    Returns:
+        None : Fills in `out`
+    """
+    # Strides for broadcasted case
+    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0 
+    b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
+    B, M, K = a_shape
+    _, _, N = b_shape
+
+    for pos in range(B*M*N):
+        # out[n, i, j] += sigma_k(a[n, i, k] * b[n, k, j])
+        n, ij = divmod(pos, M*N)
+        i, j = divmod(ij, N)
+        result = 0.0
+        for k in range(K):
+            a_idx = n*a_batch_stride + i*a_strides[1] + k*a_strides[2]
+            b_idx = n*b_batch_stride + k*b_strides[1] + j*b_strides[2]
+            result += a_storage[int(a_idx)] * b_storage[int(b_idx)]
+        out_idx = n*out_strides[0] + i*out_strides[1] + j*out_strides[2]
+        out[int(out_idx)] = result
 
 
 SimpleBackend = TensorBackend(SimpleOps)

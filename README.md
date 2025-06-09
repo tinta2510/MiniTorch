@@ -38,9 +38,8 @@ MiniTorch is a minimalist, educational re-implementation of core Pytorch's compo
 - Advanced layers: Softmax, Dropout, LogSoftmax
 - 1D and 2D Convolution using Numba (`fast_conv.py`)
 - 2D Pooling operations with tiling for avgpool and maxpool
-- Recurrent Neural Network (RNN) layer:
-  - Implemented custom RNN cell supporting sequential data
-  - Trained on temporal classification tasks (e.g., sentiment analysis over token sequences)
+- Sequence modeling layers: Implemented RNN, LSTM, GRU layers
+  
 <!-- - Trained networks for:
   - Point classification (Simple, Split, XOR)
   - MNIST digit recognition (LeNet-style CNN)
@@ -61,7 +60,7 @@ minitorch/
 └── datasets.py          # ML training datasets
 ```
 
-## Example Output
+## Example of Using MiniTorch
 ### Training an Image Classifier
 Command to run the MNIST multiclass classification example:
 ```bash
@@ -81,3 +80,54 @@ Epoch 2 loss 2.3375041193903994 valid acc 13/16
 Epoch 2 loss 2.1580129264641497 valid acc 13/16
 ```
 
+### Training a Sentiment Classifier
+Use the built  RNN, LSTM, or GRU layers for sentiment analysis on the IMDB dataset. Source Code: "./project/minitorch-imdb-sentiment-analysis.py"
+Result of RNN:
+```bash
+  [Batch 100] Loss: 0.6793
+  [Batch 200] Loss: 0.6830
+  [Batch 300] Loss: 0.7109
+  [Batch 400] Loss: 0.6887
+  [Batch 500] Loss: 0.6941
+  [Batch 600] Loss: 0.6888
+  [Batch 700] Loss: 0.6950
+[RNN] Epoch 1: Train Acc: 0.5036, Test Acc: 0.5024
+...
+  [Batch 500] Loss: 0.6331
+  [Batch 600] Loss: 0.7361
+  [Batch 700] Loss: 0.7142
+[RNN] Epoch 5: Train Acc: 0.5620, Test Acc: 0.5043
+```
+
+Result of LSTM:
+```bash
+  [Batch 100] Loss: 0.6819
+  [Batch 200] Loss: 0.6940
+  [Batch 300] Loss: 0.6937
+  [Batch 400] Loss: 0.7026
+  [Batch 500] Loss: 0.6929
+  [Batch 600] Loss: 0.6985
+  [Batch 700] Loss: 0.6738
+[LSTM] Epoch 1: Train Acc: 0.5022, Test Acc: 0.5108
+...
+  [Batch 500] Loss: 0.5313
+  [Batch 600] Loss: 0.5728
+  [Batch 700] Loss: 0.4910
+[LSTM] Epoch 5: Train Acc: 0.7407, Test Acc: 0.6849
+```
+Result of GRU:
+```bash
+  [Batch 100] Loss: 0.6955
+  [Batch 200] Loss: 0.6759
+  [Batch 300] Loss: 0.6890
+  [Batch 400] Loss: 0.6775
+  [Batch 500] Loss: 0.7041
+  [Batch 600] Loss: 0.7062
+  [Batch 700] Loss: 0.6867
+[GRU] Epoch 1: Train Acc: 0.5058, Test Acc: 0.5111
+...
+  [Batch 500] Loss: 0.3454
+  [Batch 600] Loss: 0.4701
+  [Batch 700] Loss: 0.5790
+[GRU] Epoch 5: Train Acc: 0.7718, Test Acc: 0.6997
+```
