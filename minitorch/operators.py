@@ -65,6 +65,12 @@ def sigmoid(x: float) -> float:
     """
     return 1.0/(1.0 + math.exp(-x)) if x >= 0 else math.exp(x)/(1.0 + math.exp(x))
 
+def tanh(x: float) -> float:
+    r"""
+    $$f(x) = \frac{e^x - e^{-x}}{e^x + e^{-x}}$$
+    """
+    return (math.exp(x) - math.exp(-x)) / (math.exp(x) + math.exp(-x))
+    
 
 def relu(x: float) -> float:
     """

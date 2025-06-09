@@ -68,6 +68,7 @@ class TensorBackend:
         # Maps
         self.neg_map = ops.map(operators.neg)
         self.sigmoid_map = ops.map(operators.sigmoid)
+        self.tanh_map = ops.map(operators.tanh)
         self.relu_map = ops.map(operators.relu)
         self.log_map = ops.map(operators.log)
         self.exp_map = ops.map(operators.exp)
@@ -88,7 +89,10 @@ class TensorBackend:
         # Reduce
         self.add_reduce = ops.reduce(operators.add, 0.0)
         self.mul_reduce = ops.reduce(operators.mul, 1.0)
+        self.max_reduce = ops.reduce(operators.max, -1e9)
+        
         self.matrix_multiply = ops.matrix_multiply
+
         self.cuda = ops.cuda
 
 

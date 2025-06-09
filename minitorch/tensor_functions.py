@@ -119,6 +119,88 @@ class Sigmoid(Function):
         (t1,) = ctx.saved_values
         t1_sigmoid = t1.f.sigmoid_map(t1)
         return t1_sigmoid * (tensor(1) - t1_sigmoid)
+    
+class Tanh(Function):
+    @staticmethod
+    def forward(ctx: Context, t1: Tensor) -> Tensor:
+        ctx.save_for_backward(t1)
+        return t1.f.tanh_map(t1)
+    
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tensor:
+        (t1,) = ctx.saved_values
+        t1_tanh = t1.f.tanh_map(t1)
+        return grad_output * (tensor(1) - t1_tanh ** 2)
+
+def argmax(input: Tensor, dim: int) -> Tensor:
+    """
+    Compute the argmax as a 1-hot tensor.
+
+    Args:
+        input : input tensor
+        dim : dimension to apply argmax
+
+
+    Returns:
+        :class:`Tensor` : tensor with 1 on highest cell in dim, 0 otherwise
+
+    """
+    out = input.f.max_reduce(input, dim)
+    return out == input
+
+class Max(Function):
+    @staticmethod
+    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
+        "Forward of max should be max reduction"
+        dim_int = int(dim.item())  # this gets scalar value from tensor
+        ctx.save_for_backward(input, dim)
+        return input.f.max_reduce(input, dim_int)
+    
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
+        "Backward of max should be argmax (see above)"
+        input, dim = ctx.saved_values
+        dim_int = int(dim.item())
+        is_max = argmax(input, dim_int)
+        return is_max * grad_output, 0.0
+
+class Softmax(Function):
+    @staticmethod
+    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
+        dim_int = int(dim.item()) 
+        input_max = input.f.max_reduce(input, dim_int)
+        shifted = input - input_max
+        exp = shifted.exp()
+        sum_exp = exp.sum(dim_int)
+        out = exp / sum_exp
+        ctx.save_for_backward(out, dim)
+        return out
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, int]:
+        softmax_out, dim = ctx.saved_values
+        dim_int = int(dim.item())
+        dot = (grad_output * softmax_out).sum(dim_int)
+        return softmax_out * (grad_output - dot), 0
+    
+class LogSoftmax(Function):
+    @staticmethod
+    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
+        dim_int = int(dim.item())
+        input_max = input.f.max_reduce(input, dim_int)
+        shifted = input - input_max
+        log_sum_exp = shifted.exp().sum(dim_int).log()
+        out = shifted - log_sum_exp
+        ctx.save_for_backward(out, dim)
+        return out
+
+    @staticmethod
+    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, int]:
+        out, dim = ctx.saved_values
+        dim_int = int(dim.item())
+        softmax_out = out.exp()
+        return grad_output - softmax_out * grad_output.sum(dim_int), 0
+
 
 class ReLU(Function):
     @staticmethod
@@ -409,3 +491,40 @@ but was expecting derivative %f from central difference.
             1e-2,
             err_msg=err_msg % (f, vals, x.grad[ind], i, ind, check),
         )
+
+def concat(tensors: List[Tensor], dim: int = 0) -> Tensor:
+    """
+    Concatenate a list of tensors along an existing dimension `dim`.
+    All tensors must have the same shape in all other dimensions.
+    """
+    assert len(tensors) > 0, "Need at least one tensor to concat"
+    ref_shape = list(tensors[0].shape)
+    for t in tensors:
+        for i in range(len(ref_shape)):
+            if i != dim:
+                assert t.shape[i] == ref_shape[i], f"Mismatch at dim {i}"
+
+    # Create output shape with updated size along `dim`
+    out_shape = list(ref_shape)
+    out_shape[dim] = sum(t.shape[dim] for t in tensors)
+    result = tensors[0].zeros(tuple(out_shape))
+
+    # Offset index along `dim`
+    offset = 0
+    for t in tensors:
+        for idx in t._tensor.indices():
+            new_idx = list(idx)
+            new_idx[dim] += offset
+            result[tuple(new_idx)] = t[tuple(idx)]
+        offset += t.shape[dim]
+
+    return result
+
+def stack(tensors: List[Tensor], dim: int = 0) -> Tensor:
+    assert len(tensors) > 0, "Need at least one tensor to stack"
+    shape = tensors[0].shape
+    for t in tensors:
+        assert t.shape == shape, "All tensors must have the same shape"
+
+    expanded = [t.unsqueeze(dim) for t in tensors]
+    return concat(expanded, dim=dim)

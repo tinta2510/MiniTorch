@@ -1,11 +1,14 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
-from . import operators
+from . import operators, Module, Parameter
 from .autodiff import Context
 from .fast_ops import FastOps
+from .fast_conv import conv1d, conv2d 
 from .tensor import Tensor
-from .tensor_functions import Function, rand, tensor
+from .tensor_functions import Max, Softmax, LogSoftmax, rand, tensor, zeros, stack
+from .tensor_ops import TensorBackend
 
+BACKEND = TensorBackend(FastOps)
 
 def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     """
@@ -57,93 +60,6 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     return tiled.mean(dim=4).contiguous().view(batch, channel, new_h, new_w)
 
 
-
-max_reduce = FastOps.reduce(operators.max, -1e9)
-
-
-def argmax(input: Tensor, dim: int) -> Tensor:
-    """
-    Compute the argmax as a 1-hot tensor.
-
-    Args:
-        input : input tensor
-        dim : dimension to apply argmax
-
-
-    Returns:
-        :class:`Tensor` : tensor with 1 on highest cell in dim, 0 otherwise
-
-    """
-    out = max_reduce(input, dim)
-    return out == input
-
-
-class Max(Function):
-    @staticmethod
-    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
-        "Forward of max should be max reduction"
-        dim_int = int(dim.item())  # this gets scalar value from tensor
-        ctx.save_for_backward(input, dim)
-        return max_reduce(input, dim_int)
-    
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, float]:
-        "Backward of max should be argmax (see above)"
-        input, dim = ctx.saved_values
-        dim_int = int(dim.item())
-        is_max = argmax(input, dim_int)
-        return is_max * grad_output, 0.0
-
-
-def max(input: Tensor, dim: int) -> Tensor:
-    return Max.apply(input, input._ensure_tensor(dim))
-
-
-class Softmax(Function):
-    @staticmethod
-    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
-        dim_int = int(dim.item()) 
-        input_max = max_reduce(input, dim_int)
-        shifted = input - input_max
-        exp = shifted.exp()
-        sum_exp = exp.sum(dim_int)
-        out = exp / sum_exp
-        ctx.save_for_backward(out, dim)
-        return out
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, int]:
-        softmax_out, dim = ctx.saved_values
-        dim_int = int(dim.item())
-        dot = (grad_output * softmax_out).sum(dim_int)
-        return softmax_out * (grad_output - dot), 0
-
-def softmax(input: Tensor, dim: int) -> Tensor:
-    return Softmax.apply(input, input._ensure_tensor(dim))
-
-
-class LogSoftmax(Function):
-    @staticmethod
-    def forward(ctx: Context, input: Tensor, dim: Tensor) -> Tensor:
-        dim_int = int(dim.item())
-        input_max = max_reduce(input, dim_int)
-        shifted = input - input_max
-        log_sum_exp = shifted.exp().sum(dim_int).log()
-        out = shifted - log_sum_exp
-        ctx.save_for_backward(out, dim)
-        return out
-
-    @staticmethod
-    def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, int]:
-        out, dim = ctx.saved_values
-        dim_int = int(dim.item())
-        softmax_out = out.exp()
-        return grad_output - softmax_out * grad_output.sum(dim_int), 0
-
-def logsoftmax(input: Tensor, dim: int) -> Tensor:
-    return LogSoftmax.apply(input, input._ensure_tensor(dim))
-
-
 def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     """
     Tiled max pooling 2D
@@ -158,6 +74,17 @@ def maxpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
     batch, channel, height, width = input.shape
     tiled, new_h, new_w = tile(input, kernel)  # shape: (B, C, H', W', KH×KW)
     return max(tiled, 4).contiguous().view(batch, channel, new_h, new_w)
+
+def max(input: Tensor, dim: int) -> Tensor:
+    return Max.apply(input, input._ensure_tensor(dim))
+
+
+def softmax(input: Tensor, dim: int) -> Tensor:
+    return Softmax.apply(input, input._ensure_tensor(dim))
+
+
+def logsoftmax(input: Tensor, dim: int) -> Tensor:
+    return LogSoftmax.apply(input, input._ensure_tensor(dim))
 
 
 def dropout(input: Tensor, rate: float, ignore: bool = False) -> Tensor:
@@ -178,3 +105,147 @@ def dropout(input: Tensor, rate: float, ignore: bool = False) -> Tensor:
         return input * 0.0  # drop everything
     mask = rand(input.shape) > rate
     return input * mask / (1.0 - rate)
+
+
+
+def RParam(*shape):
+    r = 0.1 * (rand(shape, backend=BACKEND) - 0.5)
+    return Parameter(r)
+
+class Linear(Module):
+    def __init__(self, in_size, out_size):
+        super().__init__()
+        self.weights = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.out_size = out_size
+
+    def forward(self, x):
+        batch, in_size = x.shape
+        return (
+            x.view(batch, in_size) @ self.weights.value.view(in_size, self.out_size)
+        ).view(batch, self.out_size) + self.bias.value
+
+class ReLU(Module):
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Apply the ReLU activation function element-wise.
+        
+        Args:
+            x: Input tensor.
+        
+        Returns:
+            Tensor with ReLU applied.
+        """
+        return x.relu()
+    
+class Sigmoid(Module):
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Apply the Sigmoid activation function element-wise.
+        
+        Args:
+            x: Input tensor.
+        
+        Returns:
+            Tensor with Sigmoid applied.
+        """
+        return x.sigmoid()
+        
+class Conv1d(Module):
+    def __init__(self, in_channels, out_channels, kernel_width):
+        super().__init__()
+        self.weights = RParam(out_channels, in_channels, kernel_width)
+        self.bias = RParam(1, out_channels, 1)
+
+    def forward(self, input):
+        out = conv1d(input, self.weights.value) + self.bias.value
+        return out
+
+class Conv2d(Module):
+    def __init__(self, in_channels, out_channels, kh, kw):
+        super().__init__()
+        self.weights = RParam(out_channels, in_channels, kh, kw)
+        self.bias = RParam(out_channels, 1, 1)
+
+    def forward(self, input):
+        out = conv2d(input, self.weights.value) + self.bias.value
+        return out
+
+class DropOut(Module):
+    def __init__(self, rate: float = 0.5):
+        super().__init__()
+        self.rate = rate
+
+    def forward(self, x: Tensor) -> Tensor:
+        return dropout(x, self.rate, ignore=not self.training)
+
+class MaxPool2d(Module):
+    def __init__(self, kh: int, kw: int):
+        super().__init__()
+        self.kh = kh
+        self.kw = kw
+
+    def forward(self, x: Tensor) -> Tensor:
+        return maxpool2d(x, (self.kh, self.kw))
+    
+class AvgPool2d(Module):
+    def __init__(self, kh: int, kw: int):
+        super().__init__()
+        self.kh = kh
+        self.kw = kw
+
+    def forward(self, x: Tensor) -> Tensor:
+        return avgpool2d(x, (self.kh, self.kw))
+    
+class RNNCell(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.W_ih = RParam(input_size, hidden_size)
+        self.W_hh = RParam(hidden_size, hidden_size)
+        self.b_ih = RParam(hidden_size)
+        self.b_hh = RParam(hidden_size)
+        
+    def forward(self, x: Tensor, h: Tensor) -> Tensor:
+        """
+        Forward pass for a single RNN cell.
+        
+        Args:
+            x: Input tensor of shape (batch_size, input_size).
+            h: Hidden state tensor of shape (batch_size, hidden_size).
+        
+        Returns:
+            New hidden state tensor of shape (batch_size, hidden_size).
+        """
+        return (
+            x @ self.W_ih.value + h @ self.W_hh.value + self.b_ih.value + self.b_hh.value
+        ).relu()
+
+class RNN(Module):
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.cell = RNNCell(input_size, hidden_size)
+        self.hidden_size = hidden_size
+
+    def forward(self, x: Tensor, h0: Optional[Tensor] = None) -> Tensor:
+        """
+        Forward pass for the RNN over a sequence.
+        
+        Args:
+            x: Input tensor of shape (seq_len, batch_size, input_size).
+        
+        Returns:
+            Output tensor of shape (seq_len, batch_size, hidden_size).
+        """
+        batch_size = x.shape[1]
+        if not h0:
+            h0 = zeros((batch_size, self.hidden_size))
+        outputs = []
+        
+        for t in range(x.shape[0]):
+            h = self.cell(x[t], h)
+            outputs.append(h)
+        
+        return stack(outputs)
+    
