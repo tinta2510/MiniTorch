@@ -3,12 +3,12 @@ MiniTorch is a minimalist, educational re-implementation of core Pytorch's compo
 
 ## Overview
 - Rebuilt PyTorch from the [MiniTorch](https://github.com/minitorch/minitorch) template with fundamental libraries, such as `numpy`, `numba`.
-- Implemented autograd system with backpropagation.
+- Implemented automatic differentiation system, which supports backpropagation.
 - Implemented `Tensor` class supporting broadcasting, strides, views, and permutings.
 - Integrated Numba-based parallelism.
+- Implemented Conv1d, Conv2d, Dropout, Pooling layers for CNN model.
+- Implemented RNN, LSTM, GRU layers for sequence modeling and temporal data
 - Built and trained models using `MiniTorch` for real-world tasks like MNIST and sentiment classification.
-- Implemented RNN layer for sequence modeling and temporal data
-
 ## Core Concepts Implemented
 
 ### Autograd Engine (`Scalar` & `Tensor`)
@@ -38,7 +38,7 @@ MiniTorch is a minimalist, educational re-implementation of core Pytorch's compo
 - Advanced layers: Softmax, Dropout, LogSoftmax
 - 1D and 2D Convolution using Numba (`fast_conv.py`)
 - 2D Pooling operations with tiling for avgpool and maxpool
-- Sequence modeling layers: Implemented RNN, LSTM, GRU layers
+- Sequence modeling layers: RNN, LSTM, GRU layers
   
 <!-- - Trained networks for:
   - Point classification (Simple, Split, XOR)
@@ -81,7 +81,8 @@ Epoch 2 loss 2.1580129264641497 valid acc 13/16
 ```
 
 ### Training a Sentiment Classifier
-Use the built  RNN, LSTM, or GRU layers for sentiment analysis on the IMDB dataset. Source Code: "./project/minitorch-imdb-sentiment-analysis.py"
+Use the built  RNN, LSTM, or GRU layers for sentiment analysis on the IMDB dataset. Source Code: "./project/minitorch-imdb-sentiment-analysis.py".
+
 Result of RNN:
 ```bash
   [Batch 100] Loss: 0.6793
